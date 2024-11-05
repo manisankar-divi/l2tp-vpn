@@ -1,0 +1,42 @@
+name: 'Connect L2TP VPN'
+description: 'Connect to L2TP VPN in GitHub Actions'
+inputs:
+  VPN_GATEWAY:
+    description: 'VPN Gateway IP or hostname'
+    required: true
+  VPN_USER:
+    description: 'VPN Username'
+    required: true
+  VPN_PASSWORD:
+    description: 'VPN Password'
+    required: true
+  VPN_PSK:
+    description: 'Pre-shared Key (if applicable)'
+    required: false
+runs:
+  using: 'composite'
+  steps:
+    - name: Checkout repository
+      uses: actions/checkout@v2
+    - name: Set up VPN connection
+      run: |
+        sudo apt update
+        sudo apt install -y network-manager-l2tp network-manager-l2tp-gnome
+
+        nmcli connection add type vpn vpn-type l2tp \
+          con-name "my-l2tp-vpn" \
+          vpn.data "gateway=${{ inputs.VPN_GATEWAY }}, user=${{ inputs.VPN_USER }}, password=${{ inputs.VPN_PASSWORD }}, psk=${{ inputs.VPN_PSK }}"
+
+        nmcli connection modify "my-l2tp-vpn" \
+          vpn.data "ike=aes128-sha1-modp2048, esp=aes128-sha1" \
+          ipv4.routes "0.0.0.0/0"
+
+        nmcli connection up "my-l2tp-vpn"
+
+        if nmcli connection show --active | grep -q "my-l2tp-vpn"; then
+            echo "Connected to VPN successfully."
+        else
+            echo "Failed to connect to VPN."
+            exit 1
+        fi
+
