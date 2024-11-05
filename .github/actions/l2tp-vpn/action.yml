@@ -16,9 +16,8 @@ inputs:
 runs:
   using: 'composite'
   steps:
-    - name: Checkout repository
-      uses: actions/checkout@v2
     - name: Set up VPN connection
+      shell: bash  # Specify the shell to use
       run: |
         sudo apt update
         sudo apt install -y network-manager-l2tp network-manager-l2tp-gnome
@@ -39,4 +38,3 @@ runs:
             echo "Failed to connect to VPN."
             exit 1
         fi
-
