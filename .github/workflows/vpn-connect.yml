@@ -1,39 +1,34 @@
-name: Setup L2TP VPN
+name: VPN Connection Setup
 
-on: [push]
+on:
+  push:
+    branches:
+      - main  # Change this to your target branch
 
 jobs:
   setup-vpn:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-latest  # Ensure you're using a self-hosted runner
     steps:
-      - name: Checkout code
+      - name: Checkout Code
         uses: actions/checkout@v4
 
-      - name: Setup VPN
+      - name: Install Necessary Packages
         run: |
-          # Prepare to run VPN setup
-          echo "Setting up VPN..."
-          VPN_GATEWAY="${{ secrets.VPN_GATEWAY }}"
-          VPN_USER="${{ secrets.VPN_USER }}"
-          VPN_PASSWORD="${{ secrets.VPN_PASSWORD }}"
-          VPN_PSK="${{ secrets.VPN_PSK }}"
+          sudo apt-get update
+          sudo apt-get install -y network-manager-l2tp
 
-          sudo apt update
-          sudo apt install -y network-manager-l2tp network-manager-l2tp-gnome
+      - name: Add L2TP VPN Connection
+        run: |
+          set -x  # Enable script debugging
+          sudo nmcli connection add type vpn vpn-type l2tp con-name my-l2tp-vpn \
+            --vpn-data "gateway=your.vpn.gateway; user=your_username; password-flags=0; ipsec-psk=your_ipsec_psk"
+          # Replace `your.vpn.gateway`, `your_username`, and `your_ipsec_psk` with your actual VPN settings
 
-          nmcli connection add type vpn vpn-type l2tp \
-            con-name "my-l2tp-vpn" \
-            vpn.data "gateway=$VPN_GATEWAY, user=$VPN_USER, password-flags=0, psk=$VPN_PSK"
+      - name: Connect to VPN
+        run: |
+          set -x
+          sudo nmcli connection up my-l2tp-vpn
 
-          nmcli connection modify "my-l2tp-vpn" \
-            vpn.data "ike=aes128-sha1-modp2048, esp=aes128-sha1" \
-            ipv4.routes "0.0.0.0/0"
-
-          nmcli connection up "my-l2tp-vpn"
-
-          if nmcli connection show --active | grep -q "my-l2tp-vpn"; then
-              echo "Connected to VPN successfully."
-          else
-              echo "Failed to connect to VPN."
-              exit 1
-          fi
+      - name: Check VPN Connection Status
+        run: |
+          nmcli connection show --active
