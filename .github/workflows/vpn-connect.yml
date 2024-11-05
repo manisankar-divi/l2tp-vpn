@@ -1,20 +1,39 @@
-name: Connect to L2TP VPN
+name: Setup L2TP VPN
 
-on:
-  - push
+on: [push]
 
 jobs:
-  connect-vpn:
+  setup-vpn:
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout repository
+      - name: Checkout code
         uses: actions/checkout@v4
 
-      - name: Connect to VPN
-        uses: ./.github/actions/l2tp-vpn
-        with:
-          VPN_GATEWAY: ${{ secrets.VPN_GATEWAY }}       # Set this in GitHub Secrets
-          VPN_USER: ${{ secrets.VPN_USER }}             # Set this in GitHub Secrets
-          VPN_PASSWORD: ${{ secrets.VPN_PASSWORD }}     # Set this in GitHub Secrets
-          VPN_PSK: ${{ secrets.VPN_PSK }}               # Optional, set this in GitHub Secrets if required
+      - name: Setup VPN
+        run: |
+          # Prepare to run VPN setup
+          echo "Setting up VPN..."
+          VPN_GATEWAY="${{ secrets.VPN_GATEWAY }}"
+          VPN_USER="${{ secrets.VPN_USER }}"
+          VPN_PASSWORD="${{ secrets.VPN_PASSWORD }}"
+          VPN_PSK="${{ secrets.VPN_PSK }}"
 
+          sudo apt update
+          sudo apt install -y network-manager-l2tp network-manager-l2tp-gnome
+
+          nmcli connection add type vpn vpn-type l2tp \
+            con-name "my-l2tp-vpn" \
+            vpn.data "gateway=$VPN_GATEWAY, user=$VPN_USER, password-flags=0, psk=$VPN_PSK"
+
+          nmcli connection modify "my-l2tp-vpn" \
+            vpn.data "ike=aes128-sha1-modp2048, esp=aes128-sha1" \
+            ipv4.routes "0.0.0.0/0"
+
+          nmcli connection up "my-l2tp-vpn"
+
+          if nmcli connection show --active | grep -q "my-l2tp-vpn"; then
+              echo "Connected to VPN successfully."
+          else
+              echo "Failed to connect to VPN."
+              exit 1
+          fi
